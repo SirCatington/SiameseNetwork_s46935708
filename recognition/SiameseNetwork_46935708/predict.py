@@ -1,2 +1,57 @@
 # showing example usage of your trained model. Print out any results and / or provide visu-
 # alisations where applicable
+import torch
+from torch.utils.data import DataLoader
+
+BATCH_SIZE = 16
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+def compute_feature_vectors(model, dataset, include_labels=False):
+    model.eval()
+
+    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
+
+    all_features = []
+    all_labels = []
+    with torch.no_grad():
+        for imgs, labels in loader:
+            features = model.forward_one(imgs.to(DEVICE))
+            all_features.append(features)
+            all_labels.append(labels.to(DEVICE))
+
+    if (include_labels):
+        return torch.cat(all_features, dim=0), torch.cat(all_labels, dim=0)
+    else:
+        return torch.cat(all_features, dim=0)
+
+
+"""
+Takes in a class feature vectors and SiameseClassificationDataset 
+to do 2-way n-shot classification
+returns a list of class labels from the dataset images
+"""
+def predict(model, melanoma_features, normal_features, test_dataset):
+    # Get average feature vector from both classes
+    # Get feature vector for test image
+    # Compute similarity between test feature vector and both classes
+    # Prediction is class with highest similarity
+    model.eval()
+
+    with torch.no_grad():
+        test_features, test_labels = compute_feature_vectors(model, test_dataset, include_labels=True)
+
+        melanoma_similarity = model.prediction(test_features.unsqueeze(1), melanoma_features.unsqueeze(0))
+        melanoma_similarity = melanoma_similarity.squeeze(-1) # Shape: (test_size, support_set_size)
+        
+        normal_similarity = model.prediction(test_features.unsqueeze(1), normal_features.unsqueeze(0))
+        normal_similarity = normal_similarity.squeeze(-1) # Shape: (test_size, support_set_size)
+        
+        avg_mel_sim = melanoma_similarity.mean(dim=1) 
+        avg_norm_sim = normal_similarity.mean(dim=1)
+
+        predictions = (avg_mel_sim > avg_norm_sim).long().cpu()
+
+        return predictions, test_labels.cpu()
+
+if __name__ == "__main__":
+    print()
