@@ -11,12 +11,13 @@ class SiameseNetwork(nn.Module):
     """
     def __init__(self):
         super(SiameseNetwork, self).__init__()
-        resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        #resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
         self.feature_map = nn.Sequential(*list(resnet.children())[:-1])
 
         self.linear = nn.Sequential(
-            nn.Linear(2048, 1, bias=False),
+            nn.Linear(512, 1, bias=False),
             nn.Sigmoid()
         )
 

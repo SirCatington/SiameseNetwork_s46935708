@@ -6,7 +6,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ExponentialLR
 import torchvision.transforms as transforms
+import torchvision
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
@@ -17,32 +19,59 @@ from dataset import DatasetController
 from modules import SiameseNetwork
 from predict import predict, compute_feature_vectors
 
+import datetime
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 LEARNING_RATE = 1e-5
+L2_LAMBDA =  1e-4
 BATCH_SIZE = 16
-NUM_EPOCHS = 1
+NUM_EPOCHS = 30
 
 VALIDATION_SPLIT = 0.2  # 20% of the training data for validation
 TEST_SPLIT = 0.2        # 20% of the total data for testing
-VALIDATION_INTERVAL = 10
+VALIDATION_INTERVAL = 1
 EARLY_STOPPING_PATIENCE = 5
 
-
-
-SUPPORT_SET_SIZE = 10
+SUPPORT_SET_SIZE = 4
 
 IMAGE_DIR = "./data/train-image/image"
 CSV_FILE = "./data/train-metadata.csv"
 BEST_MODEL_SAVE_PATH = "siamese_best.pth"
 
 
+rotation_degrees = 10
+translation_fraction = 0.02
+scale_range = (0.8, 1.2)
+shear_degrees = 17
+
 test_transformations = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.ToTensor()
+    transforms.ToTensor(),
 ])
 
-train_transformations = test_transformations
+train_transformations = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+    transforms.ToTensor(),
+
+    transforms.RandomApply([
+        transforms.RandomAffine(degrees=rotation_degrees)
+    ], p=0.5),
+
+    transforms.RandomApply([
+        transforms.RandomAffine(degrees=0, shear=(-shear_degrees, shear_degrees, -shear_degrees, shear_degrees))
+    ], p=0.5),
+
+    transforms.RandomApply([
+        transforms.RandomAffine(degrees=0, scale=scale_range)
+    ], p=0.5),
+    
+    transforms.RandomApply([
+        transforms.RandomAffine(degrees=0, translate=(translation_fraction, translation_fraction))
+    ], p=0.5),
+])
+
 
 def evaluate_on_test_set(model_path, controller):
     model = SiameseNetwork().to(DEVICE)
@@ -60,7 +89,7 @@ def evaluate_on_test_set(model_path, controller):
     test_predictions = test_predictions.numpy()
     test_labels = test_labels.numpy()
 
-    cm = confusion_matrix(test_predictions, test_labels)
+    cm = confusion_matrix(test_labels, test_predictions)
 
     # Plot confusion matrix
     plt.figure(figsize=(8, 6))
@@ -84,18 +113,21 @@ if __name__ == "__main__":
     controller = DatasetController(CSV_FILE, IMAGE_DIR, test_transformations, train_transformations, TEST_SPLIT, VALIDATION_SPLIT)
     train_dataset, validation_dataset, test_dataset = controller.get_datasets()
     
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=True)
-    validation_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=6, pin_memory=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, num_workers=4, shuffle=False, pin_memory=True)
 
     melanoma_dataset, normal_dataset = controller.get_support_datasets(SUPPORT_SET_SIZE)
 
-   # Initalise model
+    #evaluate_on_test_set("current_model/siamese_epoch_6.pth", controller)
+    #input("pause:")
+
+    # Initalise model
     model = SiameseNetwork().to(DEVICE)
     criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=L2_LAMBDA)
+    scheduler = ExponentialLR(optimizer, gamma=1)
 
-    best_validation_error = 1.0
+    prev_validation_error = 1.0
     patience_counter = 0
 
 
@@ -133,7 +165,9 @@ if __name__ == "__main__":
         avg_train_loss = running_loss / len(train_loader)
 
         training_loss_history.append(avg_train_loss)
-        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], Train Loss: {avg_train_loss:.4f}")
+        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], Train Loss: {avg_train_loss:.4f} | {datetime.datetime.now().time()}")
+
+        scheduler.step()
 
         # Validation Loop
         if (epoch + 1) % VALIDATION_INTERVAL == 0:
@@ -175,11 +209,11 @@ if __name__ == "__main__":
             print(f"Val Normal Error: {validation_error_normal:.4f}, Val Melanoma Error: {validation_error_melanoma:.4f}")
             print(f"Avg Val Error: {avg_validation_error:.4f}")
 
-            if avg_validation_error < best_validation_error:
-                best_validation_error = avg_validation_error
+            if avg_validation_error < prev_validation_error:
+                prev_validation_error = avg_validation_error
                 patience_counter = 0
                 print("Validation error improved.")
-                torch.save(model.state_dict(), BEST_MODEL_SAVE_PATH)
+                torch.save(model.state_dict(), f"./current_model/siamese_epoch_{epoch+1}.pth")
             else:
                 patience_counter += 1
                 print(f"Validation error did not improve. Patience: {patience_counter}/{EARLY_STOPPING_PATIENCE}")
@@ -219,6 +253,6 @@ if __name__ == "__main__":
     plt.close()
     print("Training history plot saved as training_history.png")
 
-    evaluate_on_test_set(BEST_MODEL_SAVE_PATH, controller)
+    #evaluate_on_test_set(BEST_MODEL_SAVE_PATH, controller)
 
 

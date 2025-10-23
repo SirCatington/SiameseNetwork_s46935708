@@ -9,7 +9,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 def compute_feature_vectors(model, dataset, include_labels=False):
     model.eval()
 
-    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
+    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     all_features = []
     all_labels = []

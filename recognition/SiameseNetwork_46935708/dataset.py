@@ -87,7 +87,7 @@ class DatasetController:
     def __init__(self, csv_path, image_dir, test_transform, train_transform, test_split, validation_split):
         self.df = pd.read_csv(csv_path)
 
-        #self.df, _ = train_test_split(self.df, test_size=0.90, stratify=self.df['target'], random_state=42)
+        #self.df, _ = train_test_split(self.df, test_size=0.99, stratify=self.df['target'], random_state=42)
         
         #print(f"Dataset size: {len(self.df)}")
 
