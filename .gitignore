@@ -2,3 +2,4 @@ recognition/SiameseNetwork_46935708/data
 recognition/SiameseNetwork_46935708/__pycache__
 recognition/SiameseNetwork_46935708/*.png
 recognition/SiameseNetwork_46935708/*.pth
+recognition/SiameseNetwork_46935708/models
