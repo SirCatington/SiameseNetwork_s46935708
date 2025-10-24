@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 import torchvision.models as models
 
 class SiameseNetwork(nn.Module):
@@ -11,15 +12,23 @@ class SiameseNetwork(nn.Module):
     """
     def __init__(self):
         super(SiameseNetwork, self).__init__()
-        #resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-        resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        #resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
         self.feature_map = nn.Sequential(*list(resnet.children())[:-1])
 
+        # for param in self.feature_map.parameters():
+        #     param.requires_grad = False
+
         self.linear = nn.Sequential(
-            nn.Linear(512, 1, bias=False),
+            nn.Linear(2048, 1, bias=False),
             nn.Sigmoid()
         )
+
+        # init.normal_(self.linear[0].weight, mean=0, std=0.2)
+        
+        # if self.linear[0].bias is not None:
+        #     init.normal_(self.linear[0].bias, mean=0.5, std=0.01)
 
     def forward_one(self, x):
         x = self.feature_map(x)

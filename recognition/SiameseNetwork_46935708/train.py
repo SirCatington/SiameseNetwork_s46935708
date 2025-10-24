@@ -21,24 +21,32 @@ from predict import predict, compute_feature_vectors
 
 import datetime
 
+seed = 42
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-LEARNING_RATE = 1e-5
-L2_LAMBDA =  1e-4
-BATCH_SIZE = 16
-NUM_EPOCHS = 30
-
-VALIDATION_SPLIT = 0.2  # 20% of the training data for validation
-TEST_SPLIT = 0.2        # 20% of the total data for testing
-VALIDATION_INTERVAL = 1
-EARLY_STOPPING_PATIENCE = 5
-
-SUPPORT_SET_SIZE = 4
 
 IMAGE_DIR = "./data/train-image/image"
 CSV_FILE = "./data/train-metadata.csv"
 BEST_MODEL_SAVE_PATH = "siamese_best.pth"
 
+VALIDATION_SPLIT = 0.2  # 20% of the training data for validation
+TEST_SPLIT = 0.2        # 20% of the total data for testing
+VALIDATION_INTERVAL = 1
+EARLY_STOPPING_PATIENCE = 15
+
+#LEARNING_RATE = 1e-3
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  1e-4
+BATCH_SIZE = 16
+NUM_EPOCHS = 30
+
+SUPPORT_SET_SIZE = 32
 
 rotation_degrees = 10
 translation_fraction = 0.02
@@ -48,11 +56,12 @@ shear_degrees = 17
 test_transformations = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
+    #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 train_transformations = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+    transforms.ColorJitter(brightness=0.1, contrast=0.05, saturation=0.05, hue=0.05),
     transforms.ToTensor(),
 
     transforms.RandomApply([
@@ -70,7 +79,24 @@ train_transformations = transforms.Compose([
     transforms.RandomApply([
         transforms.RandomAffine(degrees=0, translate=(translation_fraction, translation_fraction))
     ], p=0.5),
+    #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
+
+# test_transformations = transforms.Compose([
+#     transforms.Resize((224, 224)),
+#     transforms.ToTensor(),
+#     torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+# ])
+
+# train_transformations = transforms.Compose([
+#     transforms.Resize((224, 224)),
+#     transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+#     transforms.ToTensor(),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.RandomVerticalFlip(),
+#     torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+# ])
+
 
 
 def evaluate_on_test_set(model_path, controller):
@@ -118,14 +144,19 @@ if __name__ == "__main__":
 
     melanoma_dataset, normal_dataset = controller.get_support_datasets(SUPPORT_SET_SIZE)
 
-    #evaluate_on_test_set("current_model/siamese_epoch_6.pth", controller)
+    #evaluate_on_test_set("current_model/siamese_epoch_4.pth", controller)
+    #evaluate_on_test_set("models/siamese_02/siamese_th07.pth", controller)
     #input("pause:")
 
     # Initalise model
     model = SiameseNetwork().to(DEVICE)
     criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=L2_LAMBDA)
-    scheduler = ExponentialLR(optimizer, gamma=1)
+    optimizer = optim.Adam([
+        {'params': model.feature_map.parameters(), 'lr': BACKBONE_LEARNING_RATE},
+        {'params': model.linear.parameters(), 'lr': HEAD_LEARNING_RATE}
+    ], weight_decay=L2_LAMBDA)
+
+    scheduler = ExponentialLR(optimizer, gamma=LEARNING_DECAY)
 
     prev_validation_error = 1.0
     patience_counter = 0
@@ -213,7 +244,7 @@ if __name__ == "__main__":
                 prev_validation_error = avg_validation_error
                 patience_counter = 0
                 print("Validation error improved.")
-                torch.save(model.state_dict(), f"./current_model/siamese_epoch_{epoch+1}.pth")
+                torch.save(model.state_dict(), f"./siamese_best.pth")
             else:
                 patience_counter += 1
                 print(f"Validation error did not improve. Patience: {patience_counter}/{EARLY_STOPPING_PATIENCE}")
@@ -223,6 +254,7 @@ if __name__ == "__main__":
                 break
 
     print("Training finished")
+    print(f"Best Val Error: {prev_validation_error:.4f}")
 
     training_epochs_range  = range(1, len(training_loss_history) + 1)
 

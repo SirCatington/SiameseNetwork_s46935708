@@ -1,0 +1,71 @@
+LEARNING_RATE = 1e-5
+LEARNING_DECAY = 1
+L2_LAMBDA =  1e-4
+
+2.
+LEARNING_RATE = 1e-5
+LEARNING_DECAY = 1
+L2_LAMBDA =  1e-4
+
+3.
+LEARNING_RATE = 2e-5
+LEARNING_DECAY = 1
+L2_LAMBDA =  5e-4
+
+4.
+LEARNING_RATE = 2e-5
+LEARNING_DECAY = 1
+L2_LAMBDA =  5e-5
+
+5.
+LEARNING_RATE = 1e-5
+LEARNING_DECAY = 1
+L2_LAMBDA =  5e-5
+
+6.
+LEARNING_RATE = 1e-5
+LEARNING_DECAY = 1
+L2_LAMBDA =  7.5e-5
+
+7.
+LEARNING_RATE = 1e-5
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  5e-4
+Best Val Error: 0.1896
+
+8.
+Tested learning rates of 1e-5, 1e-4. 1e-3
+LEARNING_RATE = 1e-3
+LEARNING_DECAY = 1
+L2_LAMBDA =  5e-5
+RESNET weights frozen
+Best Val Error: 0.4920
+
+9.
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 1
+L2_LAMBDA =  5e-5
+Best Val Error: 0.1848
+
+10. Add color jitter
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 1
+L2_LAMBDA =  5e-5
+brightness=0.4, contrast=0.1, saturation=0.1, hue=0.05
+Best Val Error: 0.2451
+
+11. Add normalisation
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 1
+L2_LAMBDA =  5e-5
+Best Val Error: 0.2489
+
+12. Add less intense color jitter
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  1e-4
+brightness=0.1, contrast=0.05, saturation=0.05, hue=0.05
