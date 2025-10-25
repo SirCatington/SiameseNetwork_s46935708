@@ -69,3 +69,92 @@ HEAD_LEARNING_RATE = 1e-3
 LEARNING_DECAY = 0.99
 L2_LAMBDA =  1e-4
 brightness=0.1, contrast=0.05, saturation=0.05, hue=0.05
+Best Val Error: 0.2269
+
+13. Use Triplet Loss and BCE Loss
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  5e-5
+
+14. Use only triplet loss, normalise, add color jitter
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  5e-5
+brightness=0.1, contrast=0.05, saturation=0.05, hue=0.05
+MARGIN = 0.5
+
+14. Use ResNET-34
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  5e-5
+brightness=0.1, contrast=0.05, saturation=0.05, hue=0.05
+MARGIN = 0.5
+Best Val Error: 0.2218
+
+15. 
+ResNET-34
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  5e-5
+brightness=0.1, contrast=0.05, saturation=0.05, hue=0.05
+MARGIN = 0.25
+Best Val Error: 0.2249
+
+16. 
+ResNET-34
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  1e-4
+brightness=0.2, contrast=0.1, saturation=0.1, hue=0.05
+MARGIN = 0.20
+Best Val Error: 0.2346
+
+17.
+ResNET-50
+BACKBONE_LEARNING_RATE = 1e-6
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  1e-3
+MARGIN = 0.20
+brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05
+rotation_degrees = 180
+Best Val Error: 0.2631
+
+18.
+ResNET-18
+BACKBONE_LEARNING_RATE = 1e-6
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  1e-3
+MARGIN = 0.20
+brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05
+rotation_degrees = 180
+Best Val Error: 0.2657
+
+19.
+ResNET-18
+BACKBONE_LEARNING_RATE = 2e-6
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  2e-3
+MARGIN = 1
+brightness=0.2, contrast=0.1, saturation=0.1, hue=0.05
+rotation_degrees = 180
+Best Val Error: 0.2430
+
+
+20.
+ResNET-50
+BACKBONE_LEARNING_RATE = 1e-5
+HEAD_LEARNING_RATE = 1e-3
+LEARNING_DECAY = 0.99
+L2_LAMBDA =  2e-3
+MARGIN = 1
+brightness=0.2, contrast=0.5, saturation=0.02, hue=0
+rotation_degrees = 180
+

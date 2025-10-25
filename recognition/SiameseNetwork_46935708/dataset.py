@@ -29,35 +29,32 @@ class SiameseDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, index):
-        
-        if random.random() < 0.5:
-            # Pair consists of same image class
-            target = 1.0
-            
-            if random.random() < self.normal_proportion:
-                img1_id, img2_id = random.sample(self.normal_ids, 2)
-            else:
-                img1_id, img2_id = random.sample(self.melanoma_ids, 2)
+        # Determine if the anchor is normal or melanoma
+        if random.random() < self.normal_proportion:
+            # Anchor is normal
+            anchor_id, positive_id = random.sample(self.normal_ids, 2)
+            negative_id = random.choice(self.melanoma_ids)
         else:
-            # Pair consists of different image classes
-            target = 0.0
-            
-            img1_id = random.choice(self.normal_ids)
-            img2_id = random.choice(self.melanoma_ids)
+            # Anchor is melanoma
+            anchor_id, positive_id = random.sample(self.melanoma_ids, 2)
+            negative_id = random.choice(self.normal_ids)
+        
+        anchor_path = os.path.join(self.image_dir, f"{anchor_id}.jpg")
+        positive_path = os.path.join(self.image_dir, f"{positive_id}.jpg")
+        negative_path = os.path.join(self.image_dir, f"{negative_id}.jpg")
 
-
-        img1_path = os.path.join(self.image_dir, f"{img1_id}.jpg")
-        img2_path = os.path.join(self.image_dir, f"{img2_id}.jpg")
-
-        img1 = Image.open(img1_path).convert("RGB")
-        img2 = Image.open(img2_path).convert("RGB")
-
+        anchor_img = Image.open(anchor_path).convert("RGB")
+        positive_img = Image.open(positive_path).convert("RGB")
+        negative_img = Image.open(negative_path).convert("RGB")
 
         if self.transform:
-            img1 = self.transform(img1)
-            img2 = self.transform(img2)
-            
-        return img1, img2, torch.tensor(target, dtype=torch.float32)
+            anchor_img = self.transform(anchor_img)
+            positive_img = self.transform(positive_img)
+            negative_img = self.transform(negative_img)
+        
+        target = random.randint(0, 1)
+
+        return anchor_img, positive_img, negative_img, target
 
 class SiameseClassificationDataset(Dataset):
     """

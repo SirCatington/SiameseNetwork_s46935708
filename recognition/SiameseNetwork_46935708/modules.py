@@ -12,13 +12,11 @@ class SiameseNetwork(nn.Module):
     """
     def __init__(self):
         super(SiameseNetwork, self).__init__()
-        resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-        #resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        #resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        #resnet = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
+        resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
         self.feature_map = nn.Sequential(*list(resnet.children())[:-1])
-
-        # for param in self.feature_map.parameters():
-        #     param.requires_grad = False
 
         self.linear = nn.Sequential(
             nn.Linear(2048, 1, bias=False),
@@ -42,14 +40,20 @@ class SiameseNetwork(nn.Module):
        
         return prediction_vec
 
+    def forward(self, img1, img2, img3):
+        anchor_vec = self.forward_one(img1)
+        positive_vec = self.forward_one(img2)
+        negative_vec = self.forward_one(img3)
 
-    def forward(self, img1, img2):
-        feature_vec1 = self.forward_one(img1)
-        feature_vec2 = self.forward_one(img2)
+        return anchor_vec, positive_vec, negative_vec
 
-        output = self.prediction(feature_vec1, feature_vec2)
+    # def forward(self, img1, img2):
+    #     feature_vec1 = self.forward_one(img1)
+    #     feature_vec2 = self.forward_one(img2)
 
-        return output
+    #     output = self.prediction(feature_vec1, feature_vec2)
+
+    #     return output
 
 
 

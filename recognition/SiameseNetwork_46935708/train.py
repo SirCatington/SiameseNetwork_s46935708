@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
 
+import random
 from dataset import DatasetController
 from modules import SiameseNetwork
 from predict import predict, compute_feature_vectors
@@ -31,24 +32,26 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 IMAGE_DIR = "./data/train-image/image"
 CSV_FILE = "./data/train-metadata.csv"
-BEST_MODEL_SAVE_PATH = "siamese_best.pth"
+BEST_BACKBONE_SAVE_PATH = "backbone_best.pth"
+BEST_HEAD_SAVE_PATH = "head_best.pth"
 
 VALIDATION_SPLIT = 0.2  # 20% of the training data for validation
 TEST_SPLIT = 0.2        # 20% of the total data for testing
 VALIDATION_INTERVAL = 1
-EARLY_STOPPING_PATIENCE = 15
+EARLY_STOPPING_PATIENCE = 2
 
 #LEARNING_RATE = 1e-3
-BACKBONE_LEARNING_RATE = 1e-5
+BACKBONE_LEARNING_RATE = 2e-6
 HEAD_LEARNING_RATE = 1e-3
 LEARNING_DECAY = 0.99
-L2_LAMBDA =  1e-4
+L2_LAMBDA =  2e-3
+MARGIN = 1
 BATCH_SIZE = 16
-NUM_EPOCHS = 30
+NUM_EPOCHS = 20
 
 SUPPORT_SET_SIZE = 32
 
-rotation_degrees = 10
+rotation_degrees = 180
 translation_fraction = 0.02
 scale_range = (0.8, 1.2)
 shear_degrees = 17
@@ -56,12 +59,12 @@ shear_degrees = 17
 test_transformations = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 train_transformations = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.ColorJitter(brightness=0.1, contrast=0.05, saturation=0.05, hue=0.05),
+    transforms.ColorJitter(brightness=0.2, contrast=0.1, saturation=0.1, hue=0.05),
     transforms.ToTensor(),
 
     transforms.RandomApply([
@@ -79,7 +82,7 @@ train_transformations = transforms.Compose([
     transforms.RandomApply([
         transforms.RandomAffine(degrees=0, translate=(translation_fraction, translation_fraction))
     ], p=0.5),
-    #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 # test_transformations = transforms.Compose([
@@ -97,7 +100,8 @@ train_transformations = transforms.Compose([
 #     torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 # ])
 
-
+def squared_euclidean_distance(x1, x2):=
+    return torch.sum(torch.pow(x1 - x2, 2), dim=1)
 
 def evaluate_on_test_set(model_path, controller):
     model = SiameseNetwork().to(DEVICE)
@@ -148,9 +152,14 @@ if __name__ == "__main__":
     #evaluate_on_test_set("models/siamese_02/siamese_th07.pth", controller)
     #input("pause:")
 
-    # Initalise model
+    # Initalise models
     model = SiameseNetwork().to(DEVICE)
-    criterion = nn.BCELoss()
+    criterion_bce = nn.BCELoss()
+    criterion_triplet = nn.TripletMarginWithDistanceLoss(
+        distance_function=squared_euclidean_distance, 
+        margin=MARGIN
+    )
+
     optimizer = optim.Adam([
         {'params': model.feature_map.parameters(), 'lr': BACKBONE_LEARNING_RATE},
         {'params': model.linear.parameters(), 'lr': HEAD_LEARNING_RATE}
@@ -176,16 +185,18 @@ if __name__ == "__main__":
 
         train_loop = tqdm(train_loader, desc=f"Epoch [{epoch+1}/{NUM_EPOCHS}] Train", leave=False)
 
-        for img1, img2, labels in train_loop:
+        for anchor_img, positive_img, negative_img, targets in train_loop:
 
-            img1, img2, labels = img1.to(DEVICE), img2.to(DEVICE), labels.to(DEVICE)
+            anchor_img, positive_img, negative_img = anchor_img.to(DEVICE), positive_img.to(DEVICE), negative_img.to(DEVICE)
 
             optimizer.zero_grad()
 
-            outputs = model(img1, img2)
+            anchor_vec, positive_vec, negative_vec = model.forward(anchor_img, positive_img, negative_img)
 
-            loss = criterion(outputs.squeeze(1), labels)
-            
+            loss_triplet = criterion_triplet(anchor_vec, positive_vec, negative_vec)
+
+            loss = loss_triplet
+
             loss.backward()
 
             optimizer.step()
@@ -207,7 +218,7 @@ if __name__ == "__main__":
                 melanoma_features = compute_feature_vectors(model, melanoma_dataset)
                 normal_features = compute_feature_vectors(model, normal_dataset)
 
-                validation_predictions, validation_labels = predict(model, melanoma_features, normal_features, validation_dataset)
+                validation_predictions, validation_labels = predict(model, melanoma_features, normal_features, validation_dataset, classifier=False)
                 validation_predictions = validation_predictions.to(DEVICE)
                 validation_labels = validation_labels.to(DEVICE)
 
