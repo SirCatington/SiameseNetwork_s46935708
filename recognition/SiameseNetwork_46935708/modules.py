@@ -3,8 +3,8 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.init as init
 import torchvision.models as models
+import torch.nn.functional as F
 
 class SiameseNetwork(nn.Module):
     """
@@ -12,50 +12,52 @@ class SiameseNetwork(nn.Module):
     """
     def __init__(self):
         super(SiameseNetwork, self).__init__()
-        #resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        #resnet = models.resnet101(weights=models.ResNet101_Weights.DEFAULT)
+        resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         #resnet = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
-        resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        #resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
-        self.feature_map = nn.Sequential(*list(resnet.children())[:-1])
+        self.trunk = nn.Sequential(*list(resnet.children())[:-1])
+        in_features = resnet.fc.in_features
+        out_features = 48
 
-        self.linear = nn.Sequential(
-            nn.Linear(2048, 1, bias=False),
-            nn.Sigmoid()
+        #self.feature_map = timm.create_model("efficientnet_b3", pretrained=True, num_classes=0)
+        #in_features = self.feature_map.num_features
+
+        self.embedder= nn.Sequential(
+        nn.Dropout(p=0.3),
+        nn.Linear(in_features, 1784),
+        nn.ReLU(inplace=True),
+        nn.Linear(1784, 1536),
+        nn.ReLU(inplace=True),
+        nn.Linear(1536, 1024),
         )
+
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=0.3),
+            nn.Linear(1024, 256),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+            )
 
         # init.normal_(self.linear[0].weight, mean=0, std=0.2)
         
         # if self.linear[0].bias is not None:
         #     init.normal_(self.linear[0].bias, mean=0.5, std=0.01)
 
-    def forward_one(self, x):
-        x = self.feature_map(x)
+    def forward(self, x):
+        x = self.trunk(x)
         # Flatten
         x = x.reshape(x.size(0), -1)
+        x = F.normalize(x, p=2, dim=1)
+        x = self.embedder(x)
+        x = F.normalize(x, p=2, dim=1)
         return x
     
-    def prediction(self, feature_vec1, feature_vec2):
-        l1_distance = torch.abs(feature_vec1 - feature_vec2)
-        prediction_vec = self.linear(l1_distance)
-       
-        return prediction_vec
-
-    def forward(self, img1, img2, img3):
-        anchor_vec = self.forward_one(img1)
-        positive_vec = self.forward_one(img2)
-        negative_vec = self.forward_one(img3)
-
-        return anchor_vec, positive_vec, negative_vec
-
-    # def forward(self, img1, img2):
-    #     feature_vec1 = self.forward_one(img1)
-    #     feature_vec2 = self.forward_one(img2)
-
-    #     output = self.prediction(feature_vec1, feature_vec2)
-
-    #     return output
-
-
+    def classify(self, embedding_1, embedding_2):
+        dist = torch.abs(embedding_1 - embedding_2)
+        similarity_score = self.classifier(dist)
+        return similarity_score.squeeze(1)
 
 
 # Model test

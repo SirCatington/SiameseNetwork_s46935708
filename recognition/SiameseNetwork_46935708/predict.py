@@ -3,7 +3,7 @@
 import torch
 from torch.utils.data import DataLoader
 from sklearn.metrics import classification_report, recall_score
-
+MARGIN = 0.1
 BATCH_SIZE = 16
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -19,7 +19,7 @@ def compute_feature_vectors(model, dataset, include_labels=False):
     all_labels = []
     with torch.no_grad():
         for imgs, labels in loader:
-            features = model.forward_one(imgs.to(DEVICE))
+            features = model(imgs.to(DEVICE))
             all_features.append(features)
             all_labels.append(labels.to(DEVICE))
 
@@ -45,19 +45,20 @@ def predict(model, melanoma_features, normal_features, test_dataset, classifier=
         test_features, test_labels = compute_feature_vectors(model, test_dataset, include_labels=True)
 
         if classifier:
-            melanoma_similarity = model.prediction(test_features.unsqueeze(1), melanoma_features.unsqueeze(0))
+            melanoma_similarity = model.classify(test_features.unsqueeze(1), melanoma_features.unsqueeze(0))
             melanoma_similarity = melanoma_similarity.squeeze(-1) # Shape: (test_size, support_set_size)
             
-            normal_similarity = model.prediction(test_features.unsqueeze(1), normal_features.unsqueeze(0))
+            normal_similarity = model.classify(test_features.unsqueeze(1), normal_features.unsqueeze(0))
             normal_similarity = normal_similarity.squeeze(-1) # Shape: (test_size, support_set_size)
             
-            avg_mel_sim = melanoma_similarity.mean(dim=1) 
+            avg_mel_sim = melanoma_similarity.mean(dim=1)
             avg_norm_sim = normal_similarity.mean(dim=1)
 
-            predictions = (avg_mel_sim > avg_norm_sim).long().cpu()
+            scores_tensor = torch.stack([avg_norm_sim, avg_mel_sim], dim=1)
+            y_scores = torch.nn.functional.softmax(scores_tensor, dim=1)[:, 1]
 
-            return predictions, test_labels.cpu()
-        
+            return y_scores.cpu().numpy(), test_labels.cpu()
+                
         else:
             support_features = torch.cat([melanoma_features, normal_features], dim=0)
             melanoma_support_labels = torch.ones(melanoma_features.shape[0], device=DEVICE)

@@ -1,5 +1,17 @@
 import kaggle
 import os
+import torch
+import torch.nn.functional as F
+
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=0.1):
+        self.std = std
+        self.mean = mean
+        
+    def __call__(self, tensor):
+        noise = torch.randn(tensor.size()) * self.std + self.mean
+        noisy_tensor = tensor + noise
+        return torch.clamp(noisy_tensor, 0., 1.)
 
 def download_data():
     kaggle.api.authenticate()
