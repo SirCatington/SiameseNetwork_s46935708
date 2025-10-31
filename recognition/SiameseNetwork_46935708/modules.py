@@ -12,17 +12,10 @@ class SiameseNetwork(nn.Module):
     """
     def __init__(self):
         super(SiameseNetwork, self).__init__()
-        #resnet = models.resnet101(weights=models.ResNet101_Weights.DEFAULT)
         resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-        #resnet = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
-        #resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
         self.trunk = nn.Sequential(*list(resnet.children())[:-1])
         in_features = resnet.fc.in_features
-        out_features = 48
-
-        #self.feature_map = timm.create_model("efficientnet_b3", pretrained=True, num_classes=0)
-        #in_features = self.feature_map.num_features
 
         self.embedder= nn.Sequential(
         nn.Dropout(p=0.3),
@@ -39,11 +32,6 @@ class SiameseNetwork(nn.Module):
             nn.Linear(256, 1),
             nn.Sigmoid()
             )
-
-        # init.normal_(self.linear[0].weight, mean=0, std=0.2)
-        
-        # if self.linear[0].bias is not None:
-        #     init.normal_(self.linear[0].bias, mean=0.5, std=0.01)
 
     def forward(self, x):
         x = self.trunk(x)
