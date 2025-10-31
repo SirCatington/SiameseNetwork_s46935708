@@ -141,8 +141,7 @@ class DatasetController:
         self.train_df, self.validation_df = train_test_split(train_val_df, test_size=validation_split, stratify=train_val_df['target'], random_state=42)
 
         self.train_dataset = SiameseDataset(self.train_df, image_dir, self.train_transform)
-        self.train_classification = SiameseClassificationDataset(self.train_df, image_dir, self.test_transform)
-        self.validation_dataset = SiameseClassificationDataset(self.validation_df, image_dir, self.test_transform)
+        self.validation_dataset = SiameseDataset(self.validation_df, image_dir, self.test_transform)
         self.test_dataset = SiameseClassificationDataset(self.test_df, image_dir, self.test_transform)
 
         self.train_pair_dataset = SiamesePairDataset(self.train_df, image_dir, self.train_transform)
